@@ -1,0 +1,29 @@
+# Node
+node_modules/
+
+# Logs
+logs
+*.log
+
+# Environment
+.env
+.env.*
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Android build
+android/app/build/
+
+# iOS build
+ios/build/
+
+# Coverage
+coverage/
+
+# Temporary
+tmp/
+temp/
