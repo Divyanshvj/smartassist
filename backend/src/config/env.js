@@ -56,6 +56,13 @@ const config = {
     secret: get('JWT_SECRET', ''),
     expiresIn: get('JWT_EXPIRES_IN', '1d'),
   },
+
+  // Google Gemini (Feature 3). The API key is read here and NEVER logged.
+  gemini: {
+    apiKey: get('GOOGLE_GEMINI_API_KEY', ''),
+    model: get('GEMINI_MODEL', 'gemini-flash-latest'),
+    timeoutMs: getInt('GEMINI_TIMEOUT_MS', 30000),
+  },
 };
 
 /**
@@ -67,6 +74,7 @@ const requiredInProduction = [
   ['DB_NAME', config.db.database],
   ['DB_USER', config.db.user],
   ['JWT_SECRET', config.jwt.secret],
+  ['GOOGLE_GEMINI_API_KEY', config.gemini.apiKey],
 ];
 
 const missing = requiredInProduction

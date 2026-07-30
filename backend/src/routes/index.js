@@ -11,6 +11,7 @@ const healthRoutes = require('./health.routes');
 const authRoutes = require('./auth.routes');
 const conversationRoutes = require('./conversation.routes');
 const messageRoutes = require('./message.routes');
+const chatRoutes = require('./chat.routes');
 
 const router = express.Router();
 
@@ -18,5 +19,6 @@ router.use(healthRoutes); // GET /api/health
 router.use('/auth', authRoutes); // POST /api/auth/signup, /login
 router.use('/conversations', conversationRoutes); // conversation CRUD
 router.use('/messages', messageRoutes); // message create/list
+router.use('/chat', chatRoutes); // POST /api/chat/send (AI)
 
 module.exports = router;
