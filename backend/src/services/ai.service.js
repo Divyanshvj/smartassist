@@ -16,6 +16,28 @@ const geminiClient = require('../config/gemini');
 const config = require('../config/env');
 
 /**
+ * Build the Gemini `contents` for a single user turn.
+ *
+ * - Text only  -> the plain prompt string (unchanged behavior).
+ * - With image -> a parts array [inline image, text] for Gemini Vision.
+ *
+ * Shared by both generateResponse and streamResponse so text + vision use ONE
+ * code path (no duplication).
+ *
+ * @param {string} prompt
+ * @param {{ data: string, mimeType: string } | null} [image] - base64 image.
+ */
+function buildContents(prompt, image) {
+  if (image && image.data && image.mimeType) {
+    return [
+      { inlineData: { mimeType: image.mimeType, data: image.data } },
+      { text: prompt },
+    ];
+  }
+  return prompt;
+}
+
+/**
  * Generate a text response from a single prompt.
  *
  * @param {string} prompt - The user prompt to send to the model.
@@ -30,11 +52,11 @@ async function generateResponse(prompt) {
   }
 
   try {
-    // Ask Gemini for a completion. `contents` accepts a plain string for the
-    // simple single-turn case, which is exactly this method's scope.
+    // Ask Gemini for a completion. `contents` comes from the shared builder
+    // (a plain string here, since this text path passes no image).
     const response = await geminiClient.models.generateContent({
       model: config.gemini.model,
-      contents: prompt,
+      contents: buildContents(prompt),
     });
 
     // The SDK exposes the concatenated text via the `.text` accessor.
@@ -63,23 +85,26 @@ async function generateResponse(prompt) {
  * touches the SDK (clean architecture: controller -> service -> Gemini client).
  *
  * @param {string} prompt - The user prompt to send to the model.
- * @param {{ signal?: AbortSignal }} [options] - Optional abort signal; when it
- *        fires (client disconnect / Stop), the underlying stream is cancelled.
+ * @param {{ signal?: AbortSignal, image?: { data: string, mimeType: string } }} [options]
+ *        - Optional abort signal (client disconnect / Stop cancels the stream)
+ *          and an optional base64 image for Gemini Vision. When `image` is
+ *          present, the model receives both the image and the prompt.
  * @yields {string} Successive text fragments of the reply.
  * @throws {Error} A normalized, user-safe error (never leaks the API key).
  */
-async function* streamResponse(prompt, { signal } = {}) {
+async function* streamResponse(prompt, { signal, image } = {}) {
   // Same contract guard as the non-streaming path.
   if (typeof prompt !== 'string' || prompt.trim() === '') {
     throw new Error('A non-empty prompt string is required.');
   }
 
   try {
-    // Ask Gemini for a streamed completion. The SDK returns an async iterable
-    // of chunks; passing the abortSignal lets us cancel mid-stream.
+    // Ask Gemini for a streamed completion. `contents` is text-only or
+    // [image, text] depending on whether an image was supplied — same call,
+    // same streaming + abort handling either way.
     const stream = await geminiClient.models.generateContentStream({
       model: config.gemini.model,
-      contents: prompt,
+      contents: buildContents(prompt, image),
       ...(signal ? { config: { abortSignal: signal } } : {}),
     });
 

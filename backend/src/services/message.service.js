@@ -17,9 +17,10 @@ const ApiError = require('../utils/ApiError');
  * ordering can never drift out of sync with the messages.
  *
  * @param {number} userId
- * @param {{ conversationId: number, role?: string, content: string }} input
+ * @param {{ conversationId: number, role?: string, content: string, imageUrl?: string|null }} input
+ *        `imageUrl` is optional — persisted on Gemini Vision user turns, NULL otherwise.
  */
-async function createMessage(userId, { conversationId, role = 'user', content }) {
+async function createMessage(userId, { conversationId, role = 'user', content, imageUrl = null }) {
   return withTransaction(async conn => {
     // Ownership check inside the transaction: 404 if it isn't the user's.
     const conversation = await conversationRepository.findByIdForUser(
@@ -32,7 +33,7 @@ async function createMessage(userId, { conversationId, role = 'user', content })
     }
 
     const created = await messageRepository.create(
-      { conversationId, role, content },
+      { conversationId, role, content, imageUrl },
       conn,
     );
     await conversationRepository.touch(conversationId, conn);

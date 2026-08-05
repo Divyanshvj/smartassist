@@ -63,6 +63,14 @@ const config = {
     model: get('GEMINI_MODEL', 'gemini-flash-latest'),
     timeoutMs: getInt('GEMINI_TIMEOUT_MS', 30000),
   },
+
+  // Cloudinary (image uploads). Credentials come ONLY from the environment and
+  // are never logged. Used by config/cloudinary.js to configure the SDK.
+  cloudinary: {
+    cloudName: get('CLOUDINARY_CLOUD_NAME', ''),
+    apiKey: get('CLOUDINARY_API_KEY', ''),
+    apiSecret: get('CLOUDINARY_API_SECRET', ''),
+  },
 };
 
 /**
@@ -75,6 +83,9 @@ const requiredInProduction = [
   ['DB_USER', config.db.user],
   ['JWT_SECRET', config.jwt.secret],
   ['GOOGLE_GEMINI_API_KEY', config.gemini.apiKey],
+  ['CLOUDINARY_CLOUD_NAME', config.cloudinary.cloudName],
+  ['CLOUDINARY_API_KEY', config.cloudinary.apiKey],
+  ['CLOUDINARY_API_SECRET', config.cloudinary.apiSecret],
 ];
 
 const missing = requiredInProduction

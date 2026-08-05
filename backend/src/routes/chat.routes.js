@@ -12,6 +12,7 @@
 
 const express = require('express');
 const authenticate = require('../middleware/authenticate');
+const { uploadSingleImage } = require('../middleware/upload.middleware');
 const chatController = require('../controllers/chat.controller');
 
 const router = express.Router();
@@ -26,5 +27,8 @@ router.post('/', chatController.send);
 
 // POST /api/chat/stream — same turn, but stream the AI reply over SSE.
 router.post('/stream', chatController.streamChat);
+
+// POST /api/chat/upload-image — upload one image to Cloudinary, return metadata.
+router.post('/upload-image', uploadSingleImage, chatController.uploadImage);
 
 module.exports = router;

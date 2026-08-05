@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS messages (
   conversation_id BIGINT UNSIGNED NOT NULL,
   role            ENUM('user','assistant','system') NOT NULL,
   content         TEXT            NOT NULL,
+  -- Optional Cloudinary image URL for a Vision turn (NULL for text messages).
+  image_url       VARCHAR(1024)   DEFAULT NULL,
   created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP
                                   ON UPDATE CURRENT_TIMESTAMP,

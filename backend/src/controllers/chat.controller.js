@@ -26,6 +26,8 @@ const ApiError = require('../utils/ApiError');
 const conversationService = require('../services/conversation.service');
 const messageService = require('../services/message.service');
 const aiService = require('../services/ai.service');
+const uploadService = require('../services/upload.service');
+const { fetchImageAsBase64 } = require('../utils/imageFetcher');
 
 /**
  * POST /api/chat/send  (route wiring lives elsewhere — this file exports the
@@ -146,8 +148,9 @@ async function streamChat(req, res, next) {
   let conversation;
   let userMessage;
   let prompt;
+  let image = null; // base64 image for Gemini Vision, when an imageUrl is sent
   try {
-    const { conversationId, message } = req.body;
+    const { conversationId, message, imageUrl } = req.body;
 
     if (typeof message !== 'string' || message.trim() === '') {
       throw new ApiError(400, 'A non-empty "message" is required.');
@@ -159,16 +162,24 @@ async function streamChat(req, res, next) {
       throw new ApiError(401, 'Authentication required.');
     }
 
+    // Optional image (Gemini Vision): download the Cloudinary image to base64
+    // BEFORE we start streaming, so a bad URL fails as a normal JSON error.
+    if (imageUrl) {
+      image = await fetchImageAsBase64(imageUrl);
+    }
+
     // Resolve (or create) the conversation the user owns.
     conversation = conversationId
       ? await conversationService.getConversation(userId, conversationId)
       : await conversationService.createConversation(userId, {});
 
-    // Save the user's message BEFORE generation begins (requirement).
+    // Save the user's message BEFORE generation begins (requirement). When a
+    // Vision image was sent, persist its Cloudinary URL on this user turn.
     userMessage = await messageService.createMessage(userId, {
       conversationId: conversation.id,
       role: 'user',
       content: prompt,
+      imageUrl: imageUrl || null,
     });
   } catch (err) {
     // Nothing streamed yet -> let the central error handler render JSON.
@@ -201,7 +212,11 @@ async function streamChat(req, res, next) {
   let fullText = '';
   let streamError = null;
   try {
-    for await (const chunk of aiService.streamResponse(prompt, { signal: abort.signal })) {
+    // Same streaming provider for text and vision: pass the image when present.
+    for await (const chunk of aiService.streamResponse(prompt, {
+      signal: abort.signal,
+      image,
+    })) {
       if (clientGone) break;
       fullText += chunk;
       sendEvent({ type: 'chunk', text: chunk });
@@ -243,4 +258,21 @@ async function streamChat(req, res, next) {
   return res.end();
 }
 
-module.exports = { send, streamChat };
+/**
+ * POST /api/chat/upload-image  (JWT-protected, field name: "image")
+ *
+ * The upload middleware has already streamed the file to Cloudinary and set
+ * req.file. This controller stays thin: delegate metadata extraction to the
+ * upload service and shape the response contract. It does NOT call Gemini.
+ *
+ * Success (201):
+ *   { success: true, data: { imageUrl, publicId, width, height, format, size } }
+ *
+ * @type {import('express').RequestHandler}
+ */
+const uploadImage = asyncHandler(async (req, res) => {
+  const data = await uploadService.getImageMetadata(req.file);
+  return res.status(201).json({ success: true, data });
+});
+
+module.exports = { send, streamChat, uploadImage };
